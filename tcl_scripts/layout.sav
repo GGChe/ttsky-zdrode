@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Jun  4 19:53:25 2025
+[*]
+[dumpfile] "/home/darthlamprey/ttihp-zdrode/wave.vcd"
+[dumpfile_mtime] "Tue Jun  3 20:33:29 2025"
+[dumpfile_size] 1046236206
+[savefile] "/home/darthlamprey/ttihp-zdrode/tcl_scripts/layout.sav"
+[timestart] 0
+[size] 2494 1361
+[pos] -27 -24
+*-21.809898 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_processing_system_file.
+[treeopen] tb_processing_system_file.dut.
+[treeopen] tb_processing_system_file.dut.G_PU[0].
+[treeopen] tb_processing_system_file.dut.G_PU[1].
+[treeopen] tb_processing_system_file.dut.G_PU[2].
+[treeopen] tb_processing_system_file.dut.G_PU[3].
+[sst_width] 278
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 422
+@10023
+tb_processing_system_file.dut.G_PU[0].u_proc.data_in[15:0]
+tb_processing_system_file.dut.G_PU[1].u_proc.data_in[15:0]
+tb_processing_system_file.dut.G_PU[2].u_proc.data_in[15:0]
+tb_processing_system_file.dut.G_PU[3].u_proc.data_in[15:0]
+@28
+tb_processing_system_file.dut.G_PU[0].u_proc.spike_detection
+tb_processing_system_file.dut.G_PU[0].u_proc.event_out[1:0]
+tb_processing_system_file.dut.G_PU[1].u_proc.spike_detection
+tb_processing_system_file.dut.G_PU[1].u_proc.event_out[1:0]
+tb_processing_system_file.dut.G_PU[2].u_proc.spike_detection
+tb_processing_system_file.dut.G_PU[2].u_proc.event_out[1:0]
+tb_processing_system_file.dut.G_PU[3].u_proc.spike_detection
+tb_processing_system_file.dut.G_PU[3].u_proc.event_out[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

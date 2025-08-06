@@ -30,11 +30,10 @@ run_sim_tt_project:
 
 run_sim_tt_processing_system_io:
 	iverilog $(IVERILOG_FLAGS) -o $(SIM_OUT) \
-	  src/processing_system.v src/ram.v src/processing_unit.v src/ado.v src/classifier.v \
+	  src/processing_system.v src/ram.v src/processing_unit.v src/aso.v src/classifier.v \
 	  test/tb_processing_system_io.v
 	vvp $(SIM_OUT)
 	gtkwave -a $(GTK_SCRIPT) $(VCD) layout.sav
-
 
 run_sim_ram:
 	iverilog -o $(SIM_OUT) src/ram.v test/tb_ram16.v
@@ -47,4 +46,5 @@ plot:
 
 
 clean:
-	rm -f $(SIM_OUT) $(VCD)
+	rm -f $(SIM_OUT) wave.vcd *.vcd *.vvp *.vpi
+

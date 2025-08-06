@@ -50,7 +50,6 @@ module classifier (
             counter_confirmation_a <= 0;
             counter_confirmation_b <= 0;
             last_a_section_end     <= 0;
-            last_b_section_end     <= 0;
             event_out              <= EVENT_C;
         end else begin
             class_a_threshold <= {24'b0, class_a_thresh_in};
@@ -111,9 +110,7 @@ module classifier (
                             counter_confirmation_b <= 0;
                         end
 
-                        if (current_event == EVENT_B)
-                            last_b_section_end <= sample_count;
-                        else if (current_event == EVENT_A)
+                        if (current_event == EVENT_A)
                             last_a_section_end <= sample_count;
 
                         previous_event <= EVENT_C;

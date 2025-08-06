@@ -3,25 +3,19 @@
 
 module tb_tt_module;
 
-    //------------------------------------------------------------------
     // Parameters
-    //------------------------------------------------------------------
     parameter integer NUM_UNITS      = 4;
     parameter integer DATA_WIDTH     = 16;
     parameter integer PROCESS_CYCLES = 2;
 
-    //------------------------------------------------------------------
     // Clock / Reset
-    //------------------------------------------------------------------
     reg clk = 0;
     always #5 clk = ~clk;           // 100 MHz
 
     reg rst_n = 0;
     reg ena   = 1;
 
-    //------------------------------------------------------------------
     // DUT I/Os
-    //------------------------------------------------------------------
     reg  [7:0] ui_in  = 8'h00;
     reg  [7:0] uio_in = 8'h00;
     wire [7:0] uo_out;
@@ -48,16 +42,10 @@ module tb_tt_module;
         $dumpvars(1, dut);
     end
 
-    //------------------------------------------------------------------
-    // Statistics
-    //------------------------------------------------------------------
     integer spike_total;
     integer spike_per_unit [0:NUM_UNITS-1];
     integer event_histogram[0:3];
 
-    //------------------------------------------------------------------
-    // Stimulus data
-    //------------------------------------------------------------------
     integer data_file, code;
     integer row;
     integer i, ch;
@@ -65,9 +53,6 @@ module tb_tt_module;
     reg [DATA_WIDTH-1:0] sample [0:NUM_UNITS-1];
     reg [1:0]            ch_sel;
 
-    //------------------------------------------------------------------
-    // Test-bench
-    //------------------------------------------------------------------
     initial begin
         // zero stats
         spike_total = 0;
@@ -93,9 +78,6 @@ module tb_tt_module;
                            sample[0], sample[1], sample[2], sample[3]);
 
             if (code == NUM_UNITS) begin
-                //------------------------------------------------------
-                // normal row: feed CH0..CH3 and capture spike/event
-                //------------------------------------------------------
                 for (ch = 0; ch < NUM_UNITS; ch = ch + 1) begin
                     // MSB
                     @(posedge clk);
