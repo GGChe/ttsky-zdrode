@@ -1,56 +1,61 @@
 # Tiny Tapeout project information
 project:
-  title:        ""      # Project title
-  author:       ""      # Your name
-  discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  ""      # One line description of what your project does
-  language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
-  clock_hz:     0       # Clock frequency in Hz (or 0 if not applicable)
+  title:        "Spike Detection and Classification System"
+  author:       "Gabriel Galeote Checa"
+  discord:      "gonsos#2128"
+  description:  "Serialized input buffering with 4 parallel spike detectors + classifiers"
+  language:     "Verilog"
+  clock_hz:     0                                # No fixed frequency (asynch input protocol)
 
-  # How many tiles your design occupies? A single tile is about 167x108 uM.
-  tiles: "1x1"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
+  # Design fits in 1 tile (4 units + RAM + wrapper should fit comfortably if optimized)
+  tiles: "2x2"
 
-  # Your top module name must start with "tt_um_". Make it unique by including your github username:
-  top_module:  "tt_um_example"
+  # Top-level module name (must begin with tt_um_)
+  top_module:  "tt_um_top_layer"
 
-  # List your project's source files here.
-  # Source files must be in ./src and you must list each source file separately, one per line.
-  # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
+  # List of source files (in ./src/)
   source_files:
     - "project.v"
+    - "processing_system.v"
+    - "processing_unit.v"
+    - "ado.v"
+    - "aso.v"
+    - "neo.v"
+    - "ed.v"
+    - "ram.v"
+    - "classifier.v"
 
-# The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
-# This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
-  # Inputs
-  ui[0]: ""
-  ui[1]: ""
-  ui[2]: ""
-  ui[3]: ""
-  ui[4]: ""
-  ui[5]: ""
-  ui[6]: ""
-  ui[7]: ""
+  # ─── UI : CONTROL INPUTS ────────────────────────────────────────────
+  ui[0]: "unit_sel[0]   (LSB of 2-bit channel selector)"
+  ui[1]: "unit_sel[1]   (MSB of 2-bit channel selector)"
+  ui[2]: "byte_valid    (strobe, 1 clk-wide when uio contains a byte)"
+  ui[3]: "reserved      (drive 0 externally)"
+  ui[4]: "reserved"
+  ui[5]: "reserved"
+  ui[6]: "reserved"
+  ui[7]: "reserved"
 
-  # Outputs
-  uo[0]: ""
-  uo[1]: ""
-  uo[2]: ""
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
-  uo[6]: ""
-  uo[7]: ""
+  # ─── UO : STATUS OUTPUTS ────────────────────────────────────────────
+  #   uo_out = { 5'b00000 , event[1:0] , spike }
+  uo[0]: "spike          (spike of the SELECTED unit)"
+  uo[1]: "event[0]       (LSB of 2-bit event code)"
+  uo[2]: "event[1]       (MSB of 2-bit event code)"
+  uo[3]: "const0         (always 0)"
+  uo[4]: "const0         (always 0)"
+  uo[5]: "const0         (always 0)"
+  uo[6]: "const0         (always 0)"
+  uo[7]: "const0         (always 0)"
 
-  # Bidirectional pins
-  uio[0]: ""
-  uio[1]: ""
-  uio[2]: ""
-  uio[3]: ""
-  uio[4]: ""
-  uio[5]: ""
-  uio[6]: ""
-  uio[7]: ""
+  # ─── UIO : 8-BIT SAMPLE DATA BUS (INPUT ONLY) ──────────────────────
+  uio[0]: "sample_byte[0]  (LSB)"
+  uio[1]: "sample_byte[1]"
+  uio[2]: "sample_byte[2]"
+  uio[3]: "sample_byte[3]"
+  uio[4]: "sample_byte[4]"
+  uio[5]: "sample_byte[5]"
+  uio[6]: "sample_byte[6]"
+  uio[7]: "sample_byte[7]  (MSB)"
 
 # Do not change!
 yaml_version: 6

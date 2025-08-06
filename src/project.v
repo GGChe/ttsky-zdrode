@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Gabriel Galeote-Checcccca
+ * Copyright (c) 2024 Gabriel Galeote-Checa
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,75 +13,104 @@ module tt_um_top_layer (
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     input  wire       ena,      // Always 1,this is to enable the project 
     input  wire       clk,      // Clock
-    input  wire       rst_n     // Reset of the project
+    input  wire       rst_n     // Reset of the project (active-low)
 );
 
-    parameter integer NUM_UNITS  = 4;
+    // ------------------------------------------------------------------------
+    // Parameters
+    // ------------------------------------------------------------------------
+    parameter integer NUM_UNITS  = 2;
     parameter integer DATA_WIDTH = 16;
 
-    // Active-low reset from external pin
+    // ------------------------------------------------------------------------
+    // Reset / control
+    // ------------------------------------------------------------------------
     wire rst = ~rst_n;
 
-    // Channel select input from ui_in[1:0]
+    // Channel select input from ui_in[1:0] (only 2 bits are available on UI)
     wire [1:0] selected_unit = ui_in[1:0];
-    wire _unused_ui = &{ ui_in[7:2] };
 
-    // 2-byte sample assembler (MSB first)
-    reg [DATA_WIDTH-1:0] sample_sr = 0;
-    reg byte_idx = 0;  // toggles 0 → 1 → 0
-    reg sample_wr_en = 0;
+    // Mark unused UI bits as used to avoid lint warnings (exclude bit[2] byte_valid)
+    wire _unused_ui = &{ ui_in[7:3] };
+
+    // Byte-valid strobe on ui_in[2]
     wire byte_valid = ui_in[2];
+
+    // ------------------------------------------------------------------------
+    // 2-byte sample assembler (MSB then LSB), synchronous to clk
+    // ------------------------------------------------------------------------
+    reg [DATA_WIDTH-1:0] sample_sr   = {DATA_WIDTH{1'b0}};
+    reg                  byte_idx    = 1'b0;   // toggles 0 → 1 → 0
+    reg                  sample_wr_en= 1'b0;
 
     always @(posedge clk) begin
         if (rst) begin
-            byte_idx     <= 0;
-            sample_sr    <= 0;
-            sample_wr_en <= 0;
-        end else begin
-            sample_wr_en <= 0;
+            byte_idx     <= 1'b0;
+            sample_sr    <= {DATA_WIDTH{1'b0}};
+            sample_wr_en <= 1'b0;
+        end
+        else begin
+            sample_wr_en <= 1'b0;
 
             if (byte_valid) begin
-                if (byte_idx == 0) begin
+                if (byte_idx == 1'b0) begin
                     // First byte → MSB
                     sample_sr[15:8] <= uio_in;
-                    byte_idx <= 1;
-                end else begin
+                    byte_idx        <= 1'b1;
+                end
+                else begin
                     // Second byte → LSB
-                    sample_sr[7:0] <= uio_in;
-                    byte_idx <= 0;
-                    sample_wr_en <= 1'b1;  // complete 16-bit sample
+                    sample_sr[7:0]  <= uio_in;
+                    byte_idx        <= 1'b0;
+                    sample_wr_en    <= 1'b1;  // complete 16-bit sample
                 end
             end
         end
     end
 
-
-    // Processing system instantiation
-    wire [NUM_UNITS-1:0]   spike_array;
-    wire [2*NUM_UNITS-1:0] event_array;
-    wire                   sample_valid_unused;  // <-- Added internal wire for unused port
+    // ------------------------------------------------------------------------
+    // Processing system instance (flat buses only)
+    // ------------------------------------------------------------------------
+    wire                     sample_valid_unused;           // unused output
+    wire [NUM_UNITS-1:0]     spike_bus;                     // 1 bit per unit
+    wire [2*NUM_UNITS-1:0]   event_bus;                     // 2 bits per unit
 
     processing_system #(
-        .NUM_UNITS(NUM_UNITS),
-        .DATA_WIDTH(DATA_WIDTH)
+        .NUM_UNITS  (NUM_UNITS),
+        .DATA_WIDTH (DATA_WIDTH)
     ) u_processing (
         .clk                   (clk),
         .rst                   (rst),
         .sample_in             (sample_sr),
         .write_sample_in       (sample_wr_en),
-        .spike_detection_array (spike_array),
-        .event_out_array       (event_array),
-        .sample_valid          (sample_valid_unused)  // <-- Properly connect the port
+        .spike_detection_array (spike_bus),
+        .event_out_array       (event_bus),
+        .sample_valid          (sample_valid_unused)
     );
 
-    // Output mux: select event/spike data from selected unit
+    // ------------------------------------------------------------------------
+    // Output mux: select event/spike data from the selected unit
+    // ------------------------------------------------------------------------
+    // event_bus layout (LSB on the right):
+    //   unit 0 -> event_bus[1:0]
+    //   unit 1 -> event_bus[3:2]
+    //   ...
+    // spike_bus layout:
+    //   unit k -> spike_bus[k]
+    //
+    // uo_out mapping:
+    //   [0]   = spike (selected unit)
+    //   [2:1] = event[1:0] (selected unit)
+    //   [7:3] = 0
     assign uo_out = {
         5'b00000,
-        event_array[(2 * selected_unit) +: 2],
-        spike_array[selected_unit]
+        event_bus[2*selected_unit +: 2],
+        spike_bus[selected_unit]
     };
 
-    // Unused
+    // ------------------------------------------------------------------------
+    // Unused IOs
+    // ------------------------------------------------------------------------
     assign uio_out = 8'h00;
     assign uio_oe  = 8'h00;
     wire _unused_ena = &{ ena };

@@ -1,25 +1,21 @@
 `default_nettype none
 module processing_system #(
-        parameter integer NUM_UNITS  = 4,
+        parameter integer NUM_UNITS  = 2,
         parameter integer DATA_WIDTH = 16
     )(
         input  wire                     clk,
         input  wire                     rst,
 
-        input  wire [DATA_WIDTH-1:0]    sample_in,        // 16-bit word
-        input  wire                     write_sample_in,  // strobe
-
+        input  wire [DATA_WIDTH-1:0]    sample_in,        
+        input  wire                     write_sample_in,  
         output wire [NUM_UNITS-1:0]     spike_detection_array,
         output wire [2*NUM_UNITS-1:0]   event_out_array,
-        output wire                     sample_valid       // <-- ADDED OUTPUT
+        output wire                     sample_valid   
     );
 
     localparam integer RAM_ADDR_W = $clog2(NUM_UNITS);
 
-    // ------------------------------------------------------------
-    // 1.  RAM write side
-    // ------------------------------------------------------------
-    wire ram_full_pulse;                 // 1-cy pulse at wrap
+    wire ram_full_pulse;                
     wire [DATA_WIDTH-1:0] ram_dout;
 
     RAM16 #(.ADDR_WIDTH(RAM_ADDR_W)) u_ram16 (
@@ -40,9 +36,9 @@ module processing_system #(
     reg [RAM_ADDR_W-1:0]      rd_addr = 0;
     reg [DATA_WIDTH-1:0]      proc_word_buf [0:NUM_UNITS-1];
     reg [31:0]                read_count;
-    reg                       sample_valid_int = 1'b0;   // <-- INTERNAL REGISTER
+    reg                       sample_valid_int = 1'b0;   
 
-    assign sample_valid = sample_valid_int;              // <-- DRIVE OUTPUT
+    assign sample_valid = sample_valid_int;
 
     always @(posedge clk) begin
         if (rst) begin

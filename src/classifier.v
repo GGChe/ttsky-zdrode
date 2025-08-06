@@ -34,9 +34,10 @@ module classifier (
     reg  [31:0] counter_confirmation_a;
     reg  [31:0] counter_confirmation_b;
     reg  [31:0] last_a_section_end;
+    reg  [31:0] last_b_section_end;
     reg  [31:0] k;
 
-    always @(posedge clk or posedge reset) begin
+    always @(posedge clk) begin
         if (reset) begin
             current_event          <= EVENT_C;
             previous_event         <= EVENT_C;
@@ -50,7 +51,6 @@ module classifier (
             counter_confirmation_a <= 0;
             counter_confirmation_b <= 0;
             last_a_section_end     <= 0;
-            last_b_section_end     <= 0;
             event_out              <= EVENT_C;
         end else begin
             class_a_threshold <= {24'b0, class_a_thresh_in};

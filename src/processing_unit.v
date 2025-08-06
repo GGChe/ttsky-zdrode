@@ -9,10 +9,8 @@ module processing_unit (
     output wire        spike_detection,
     output wire [1:0]  event_out
 );
-    // Internal signal
     wire spike_detected_internal;
 
-    // Instantiate spike detector (ADO)
     aso spike_detector_instance (
         .clk(clk),
         .rst(rst),
@@ -21,7 +19,6 @@ module processing_unit (
         .spike_detected(spike_detected_internal)
     );
 
-    // Instantiate event classifier
     classifier classifier_instance (
         .clk(clk),
         .reset(rst),
@@ -32,7 +29,6 @@ module processing_unit (
         .timeout_period_in(timeout_period_in)
     );
 
-    // Output spike detection signal
     assign spike_detection = spike_detected_internal;
 
 endmodule
