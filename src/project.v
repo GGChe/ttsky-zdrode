@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Gabriel Galeote-Checcccca
+ * Copyright (c) 2024 Gabriel Galeote-Checa
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,7 +16,7 @@ module tt_um_top_layer (
     input  wire       rst_n     // Reset of the project
 );
 
-    parameter integer NUM_UNITS  = 4;
+    parameter integer NUM_UNITS  = 2;
     parameter integer DATA_WIDTH = 16;
 
     // Active-low reset from external pin
@@ -56,11 +56,24 @@ module tt_um_top_layer (
     end
 
 
-    // Processing system instantiation
-    wire [NUM_UNITS-1:0]   spike_array;
-    wire [2*NUM_UNITS-1:0] event_array;
+    wire [0:0] spike_array [0:NUM_UNITS-1];
+    wire [1:0] event_array [0:NUM_UNITS-1];
     wire                   sample_valid_unused;  // <-- Added internal wire for unused port
 
+    // Flattened versions for module connection
+    wire [NUM_UNITS-1:0] spike_array_flat;
+    wire [2*NUM_UNITS-1:0] event_array_flat;
+
+    // Flattening logic
+    genvar i;
+    generate
+        for (i = 0; i < NUM_UNITS; i = i + 1) begin
+            assign spike_array_flat[i]        = spike_array[i];
+            assign event_array_flat[(2*i)+:2] = event_array[i];
+        end
+    endgenerate
+
+    // Module instantiation
     processing_system #(
         .NUM_UNITS(NUM_UNITS),
         .DATA_WIDTH(DATA_WIDTH)
@@ -69,15 +82,14 @@ module tt_um_top_layer (
         .rst                   (rst),
         .sample_in             (sample_sr),
         .write_sample_in       (sample_wr_en),
-        .spike_detection_array (spike_array),
-        .event_out_array       (event_array),
-        .sample_valid          (sample_valid_unused)  // <-- Properly connect the port
+        .spike_detection_array (spike_array_flat),
+        .event_out_array       (event_array_flat),
+        .sample_valid          (sample_valid_unused)
     );
-
     // Output mux: select event/spike data from selected unit
     assign uo_out = {
         5'b00000,
-        event_array[(2 * selected_unit) +: 2],
+        event_array[selected_unit],
         spike_array[selected_unit]
     };
 
