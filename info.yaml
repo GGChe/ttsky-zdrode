@@ -8,7 +8,7 @@ project:
   clock_hz:     0                                # No fixed frequency (asynch input protocol)
 
   # Design fits in 1 tile (4 units + RAM + wrapper should fit comfortably if optimized)
-  tiles: "2x2"
+  tiles: "2x1"
 
   # Top-level module name (must begin with tt_um_)
   top_module:  "tt_um_top_layer"
