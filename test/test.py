@@ -14,49 +14,57 @@ from collections import defaultdict
 CLK_PERIOD_NS   = 100       # 10 MHz
 NUM_UNITS       = 2
 PROCESS_CYCLES  = 2
-OBS_CYCLES      = 3         # sample window after selector (helps if mux is registered)
+OBS_CYCLES      = 3         # observe a few cycles after selecting a unit
 CSV_FILE        = "input_data_2ch.csv"
-MAX_ROWS        = None      # None → run full file
+MAX_ROWS        = None
 
 # ----------------------------- utilities -------------------------------------
 def extract_event_intervals(event_list):
     intervals = defaultdict(list)
     if not event_list:
         return dict(intervals)
-    current_event = event_list[0]
-    start_idx = 0
-    for idx in range(1, len(event_list)):
-        if event_list[idx] != current_event:
-            intervals[current_event].append([start_idx, idx - 1])
-            current_event = event_list[idx]
-            start_idx = idx
-    intervals[current_event].append([start_idx, len(event_list) - 1])
+    cur = event_list[0]; start = 0
+    for i in range(1, len(event_list)):
+        if event_list[i] != cur:
+            intervals[cur].append([start, i - 1])
+            cur = event_list[i]; start = i
+    intervals[cur].append([start, len(event_list) - 1])
     return dict(intervals)
 
-# Read a single bit safely
-def _bit_as_int_safe(binval, bit_idx: int):
-    bit = binval[bit_idx]          # 1-bit BinaryValue
-    try:
-        return int(bit) if bit.is_resolvable else None
-    except Exception:
+def _bit_lsb0(binval, idx):
+    """
+    Return bit 'idx' (LSB=0) of 'binval' as 0/1, or None if X/Z.
+    Uses string indexing so we don't depend on big-endian BinaryValue semantics.
+    """
+    s = binval.binstr  # MSB...LSB string
+    if not s or idx < 0 or idx >= len(s):
         return None
+    ch = s[-1 - idx]   # LSB at rightmost
+    if ch in '01':
+        return int(ch)
+    return None
 
-# Read a 2-bit slice safely (msb..lsb inclusive)
-def _slice_as_int_safe(binval, msb: int, lsb: int):
-    sl = binval[msb:lsb]
-    try:
-        return int(sl) if sl.is_resolvable else None
-    except Exception:
-        return None
+def _bits_lsb0(binval, lsb, msb):
+    """
+    Return integer composed from bits [msb:lsb] (inclusive), LSB=0 indexing.
+    Returns None if any bit is X/Z.
+    """
+    val = 0
+    for i in range(lsb, msb + 1):
+        b = _bit_lsb0(binval, i)
+        if b is None:
+            return None
+        val |= (b << (i - lsb))
+    return val
 
 # ----------------------------- helpers ---------------------------------------
 async def send_byte(dut, byte: int):
     """Assert ui_in[2] for exactly one clock while driving uio_in with *byte*."""
-    await RisingEdge(dut.clk)             # edge N
+    await RisingEdge(dut.clk)
     dut.uio_in.value = byte & 0xFF
-    dut.ui_in.value  = 0b0000_0100        # byte_valid
-    await RisingEdge(dut.clk)             # edge N+1, sampled by DUT
-    dut.ui_in.value  = 0                  # de-assert
+    dut.ui_in.value  = 0b0000_0100
+    await RisingEdge(dut.clk)
+    dut.ui_in.value  = 0
 
 async def send_sample(dut, word: int):
     """Send a 16-bit sample MSB first, then LSB."""
@@ -118,7 +126,6 @@ async def tinytapeout_csv_stimulus(dut):
                 dut._log.warning("non-numeric CSV line %d (ignored)", rows_read)
                 continue
 
-            # Drive each channel
             for ch, sample in enumerate(samples):
                 # (1) record analogue trace point
                 sample_times[ch].append(sample_idx)
@@ -127,7 +134,7 @@ async def tinytapeout_csv_stimulus(dut):
                 # (2) send the sample
                 await send_sample(dut, sample)
 
-                # (3) pipeline latency identical to Verilog bench
+                # (3) DUT pipeline latency
                 if PROCESS_CYCLES:
                     await ClockCycles(dut.clk, PROCESS_CYCLES)
 
@@ -139,10 +146,9 @@ async def tinytapeout_csv_stimulus(dut):
                 saw_spike = False
                 resolved_event = None
                 for _ in range(OBS_CYCLES):
-                    # check only the relevant bits (avoid false negatives from Z on [7:3])
-                    s = _bit_as_int_safe(dut.uo_out.value, 0)        # spike
-                    e = _slice_as_int_safe(dut.uo_out.value, 2, 1)   # event[2:1]
-                    if s is not None and s == 1:
+                    s = _bit_lsb0(dut.uo_out.value, 0)      # spike at bit 0 (LSB)
+                    e = _bits_lsb0(dut.uo_out.value, 1, 2)  # event at bits [2:1]
+                    if s == 1:
                         saw_spike = True
                     if e is not None:
                         resolved_event = e
@@ -159,7 +165,7 @@ async def tinytapeout_csv_stimulus(dut):
                     event_times[ch].append(sample_idx)
                     event_types[ch].append(resolved_event)
                 else:
-                    # treat as 00 if never resolved; comment out if you prefer to skip
+                    # If never resolved, count as 00 (or skip if you prefer)
                     event_histogram[0] += 1
                     event_times[ch].append(sample_idx)
                     event_types[ch].append(0)
@@ -173,7 +179,7 @@ async def tinytapeout_csv_stimulus(dut):
     # Summary
     dut._log.info("\n==== SPIKE SUMMARY (TinyTapeout wrapper) ====")
     for unit, cnt in enumerate(spike_per_unit):
-        dut._log.info("unit %0d : %0d spikes", unit, cnt)
+        dut._log.info("unit %0d : %d spikes", unit, cnt)
     dut._log.info("total    : %d", spike_total)
     dut._log.info("events   : 00=%d  01=%d  10=%d  11=%d",
                   event_histogram[0], event_histogram[1],
@@ -182,7 +188,7 @@ async def tinytapeout_csv_stimulus(dut):
     dut._log.info("samples driven : %d", sample_idx)
 
     # Plot
-    colours_ev = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']  # by event code
+    colours_ev = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
     fig, axs = plt.subplots(NUM_UNITS, 1, figsize=(12, 2.5 * NUM_UNITS), sharex=True)
     if NUM_UNITS == 1:
         axs = [axs]
