@@ -32,7 +32,6 @@ NUM_UNITS      = 2
 PROCESS_CYCLES = 2
 CSV_FILE       = "input_data_2ch.csv"
 MAX_ROWS       = None        # None → run full file
-MAX_SAMPLES    = 800000      # hard stop for very long stimuli
 
 # ----------------------------- test functions ----------------------------------
 
@@ -185,10 +184,6 @@ async def tinytapeout_csv_stimulus(dut):
                 sample_idx += 1
                 if sample_idx % 1000 == 0:
                     dut._log.info(f"Processed {sample_idx} samples")
-
-
-            if MAX_SAMPLES and sample_idx >= MAX_SAMPLES:
-                break
             rows_read += 1
 
     # ----------------------------- summary ----------------------------------
