@@ -28,11 +28,11 @@ from collections import defaultdict
 
 # ----------------------------- parameters ------------------------------------
 CLK_PERIOD_NS  = 100      # 10-MHz
-NUM_UNITS      = 4
+NUM_UNITS      = 2
 PROCESS_CYCLES = 2
-CSV_FILE       = "input_data_4ch.csv"
+CSV_FILE       = "input_data_2ch.csv"
 MAX_ROWS       = None        # None → run full file
-MAX_SAMPLES    = 700000      # hard stop for very long stimuli
+MAX_SAMPLES    = 800000      # hard stop for very long stimuli
 
 # ----------------------------- test functions ----------------------------------
 
@@ -187,7 +187,7 @@ async def tinytapeout_csv_stimulus(dut):
                     dut._log.info(f"Processed {sample_idx} samples")
 
 
-            if sample_idx >= MAX_SAMPLES:
+            if MAX_SAMPLES and sample_idx >= MAX_SAMPLES:
                 break
             rows_read += 1
 

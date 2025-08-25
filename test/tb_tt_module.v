@@ -3,115 +3,150 @@
 
 module tb_tt_module;
 
+    //------------------------------------------------------------------
     // Parameters
-    parameter integer NUM_UNITS      = 4;
+    //------------------------------------------------------------------
+    parameter integer NUM_UNITS      = 2;    // set to 2 for a 2-channel test
     parameter integer DATA_WIDTH     = 16;
     parameter integer PROCESS_CYCLES = 2;
 
+    //------------------------------------------------------------------
     // Clock / Reset
+    //------------------------------------------------------------------
     reg clk = 0;
-    always #5 clk = ~clk;           // 100 MHz
+    always #5 clk = ~clk;                      // 100 MHz
 
     reg rst_n = 0;
     reg ena   = 1;
 
+    //------------------------------------------------------------------
     // DUT I/Os
-    reg  [7:0] ui_in  = 8'h00;
-    reg  [7:0] uio_in = 8'h00;
-    wire [7:0] uo_out;
+    //------------------------------------------------------------------
+    reg  [7:0] ui_in  = 8'h00;                // [1:0]=unit select, [2]=byte_valid
+    reg  [7:0] uio_in = 8'h00;                // sample byte stream (MSB first)
+    wire [7:0] uo_out;                        // [0]=spike, [2:1]=event (selected unit)
     wire [7:0] uio_out;
     wire [7:0] uio_oe;
 
     tt_um_top_layer dut (
-        .clk   (clk),
-        .rst_n (rst_n),
-        .ena   (ena),
-        .ui_in (ui_in),
-        .uio_in(uio_in),
-        .uo_out(uo_out),
+        .clk    (clk),
+        .rst_n  (rst_n),
+        .ena    (ena),
+        .ui_in  (ui_in),
+        .uio_in (uio_in),
+        .uo_out (uo_out),
         .uio_out(uio_out),
-        .uio_oe(uio_oe)
+        .uio_oe (uio_oe)
     );
 
     //------------------------------------------------------------------
-    // Wave dump
+    // Wave dump (single recursive dump)
     //------------------------------------------------------------------
     initial begin
         $dumpfile("wave.vcd");
         $dumpvars(0, tb_tt_module);
-        $dumpvars(1, dut);
     end
 
+    //------------------------------------------------------------------
+    // Stats
+    //------------------------------------------------------------------
     integer spike_total;
     integer spike_per_unit [0:NUM_UNITS-1];
     integer event_histogram[0:3];
 
+    //------------------------------------------------------------------
+    // Stimulus data
+    //------------------------------------------------------------------
     integer data_file, code;
-    integer row;
-    integer i, ch;
+    integer row, i, ch;
 
     reg [DATA_WIDTH-1:0] sample [0:NUM_UNITS-1];
-    reg [1:0]            ch_sel;
+    reg [8*128-1:0]      skip;   // used to skip malformed line tails
 
+    //------------------------------------------------------------------
+    // Helpers
+    //------------------------------------------------------------------
+    // Strobe byte_valid while driving uio_in
+    task automatic send_byte(input [7:0] b);
+        begin
+            @(posedge clk);
+            uio_in   <= b;
+            ui_in[2] <= 1'b1;
+            @(posedge clk);
+            ui_in[2] <= 1'b0;
+        end
+    endtask
+
+    // Hold unit selector on ui_in[1:0]
+    task automatic set_selector(input [1:0] sel);
+        begin
+            ui_in[1:0] <= sel;
+        end
+    endtask
+
+    //------------------------------------------------------------------
+    // Testbench
+    //------------------------------------------------------------------
     initial begin
-        // zero stats
+        // init stats
         spike_total = 0;
         for (i = 0; i < NUM_UNITS; i = i + 1) spike_per_unit[i] = 0;
         for (i = 0; i < 4;         i = i + 1) event_histogram[i] = 0;
 
-        // reset sequence
-        rst_n = 0; repeat (5) @(posedge clk);
-        rst_n = 1; repeat (5) @(posedge clk);
+        // reset
+        rst_n = 0; repeat (8) @(posedge clk);
+        rst_n = 1; repeat (8) @(posedge clk);
 
-        // open CSV
-        data_file = $fopen("input_data_4ch.csv", "r");
-        // data_file = $fopen("test/input_data_4ch.csv", "r");
+        // open CSV (2 columns)
+        data_file = $fopen("input_data_2ch.csv", "r");
+        // data_file = $fopen("test/input_data_2ch.csv", "r");
         if (data_file == 0) begin
-            $display("FATAL: cannot open input_data_4ch.csv");
+            $display("FATAL: cannot open input_data_2ch.csv nor test/input_data_2ch.csv");
             $finish;
         end
 
         // main loop
         row = 0;
         while (!$feof(data_file)) begin
-            code = $fscanf(data_file,"%d,%d,%d,%d\n",
-                           sample[0], sample[1], sample[2], sample[3]);
+            // read exactly NUM_UNITS (here 2) comma-separated integers
+            if (NUM_UNITS == 2)
+                code = $fscanf(data_file, "%d,%d", sample[0], sample[1]);
+            else if (NUM_UNITS == 4)
+                code = $fscanf(data_file, "%d,%d,%d,%d",
+                               sample[0], sample[1], sample[2], sample[3]);
+            else
+                code = $fscanf(data_file, "%d", sample[0]); // trivial fallback
 
             if (code == NUM_UNITS) begin
+                // feed each channel, then observe once
                 for (ch = 0; ch < NUM_UNITS; ch = ch + 1) begin
-                    // MSB
-                    @(posedge clk);
-                    uio_in = sample[ch][15:8];
-                    ui_in  = 8'b0000_0100;          // byte_valid
-                    @(posedge clk) ui_in = 0;
-
-                    // LSB
-                    @(posedge clk);
-                    uio_in = sample[ch][7:0];
-                    ui_in  = 8'b0000_0100;
-                    @(posedge clk) ui_in = 0;
-
-                    // pipeline latency
+                    set_selector(ch[1:0]);           // hold selection
+                    send_byte(sample[ch][15:8]);      // MSB
+                    send_byte(sample[ch][7:0]);       // LSB
                     repeat (PROCESS_CYCLES) @(posedge clk);
+                    @(posedge clk);                   // settle one cycle
 
-                    // select same unit and sample outputs
-                    ch_sel = ch[1:0];
-                    ui_in  = {6'b0, ch_sel};
-                    @(posedge clk);
-
-                    if (uo_out[0]) begin
+                    // accumulate stats (one sample per unit per row)
+                    if (uo_out[0] === 1'b1) begin
                         spike_total        = spike_total + 1;
                         spike_per_unit[ch] = spike_per_unit[ch] + 1;
                     end
-                    event_histogram[uo_out[2:1]] =
-                        event_histogram[uo_out[2:1]] + 1;
+                    if (uo_out[2:1] !== 2'bxx && uo_out[2:1] !== 2'bzz)
+                        event_histogram[uo_out[2:1]] = event_histogram[uo_out[2:1]] + 1;
                 end
+                // optional: clear control bus
+                // ui_in <= 8'h00;
+            end
+            else if (code == -1) begin
+                // EOF mid-format; loop condition will exit
             end
             else begin
-                $display("WARNING: malformed CSV line %0d", row);
+                // malformed/partial line: report and consume remainder
+                $display("WARNING: malformed CSV line %0d (matched %0d fields)", row, code);
+                void'($fgets(skip, data_file));
             end
 
-            row = row + 1;          // always advance row counter
+            row = row + 1;
         end
 
         $fclose(data_file);

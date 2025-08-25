@@ -12,7 +12,7 @@ module ps_tb ();
         #1;
     end
 
-    parameter int NUM_UNITS  = 4;
+    parameter int NUM_UNITS  = 2;
     parameter int DATA_WIDTH = 16;
 
     reg                     clk;

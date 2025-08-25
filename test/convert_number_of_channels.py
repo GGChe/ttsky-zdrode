@@ -1,9 +1,9 @@
 import pandas as pd
 
 # Configuration: set these variables as needed
-input_file = 'input_data.csv'       # Path to the input CSV file
-output_file = 'input_data_4ch.csv'     # Path to the output CSV file
-num_columns = 4                # Desired number of columns (set to None for single-row output)
+input_file = "input_data.csv"       # Path to the input CSV file
+num_columns = 2               # Desired number of columns (set to None for single-row output)
+output_file = f"input_data_{num_columns}ch.csv"     # Path to the output CSV file
 
 # Read the data into a DataFrame
 df = pd.read_csv(input_file, header=None)
@@ -27,6 +27,6 @@ df_out.to_csv(output_file, index=False, header=False)
 
 # Informational message
 if num_columns:
-    print(f"Data has been duplicated into {num_columns} columns in '{output_file}'.")
+    print(f"Data has been duplicated into {num_columns} columns in {output_file}.")
 else:
-    print(f"Data has been written as a single row with {df_out.shape[1]} columns in '{output_file}'.")
+    print(f"Data has been written as a single row with {df_out.shape[1]} columns in {output_file}.")
