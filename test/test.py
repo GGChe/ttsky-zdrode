@@ -11,15 +11,16 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from collections import defaultdict
 
 # ----------------------------- parameters ------------------------------------
-CLK_PERIOD_NS   = 100       # 10 MHz
+CLK_PERIOD_NS   = 10        # 100 MHz (matches Verilog TB)
 NUM_UNITS       = 2
 PROCESS_CYCLES  = 2
 OBS_CYCLES      = 3         # observe a few cycles after selecting a unit
 CSV_FILE        = "input_data_2ch.csv"
-MAX_ROWS        = None
+MAX_ROWS        = 180000
 
 # ----------------------------- utilities -------------------------------------
 def extract_event_intervals(event_list):
+    from collections import defaultdict
     intervals = defaultdict(list)
     if not event_list:
         return dict(intervals)
@@ -32,11 +33,7 @@ def extract_event_intervals(event_list):
     return dict(intervals)
 
 def _bit_lsb0(binval, idx):
-    """
-    Return bit 'idx' (LSB=0) of 'binval' as 0/1, or None if X/Z.
-    Uses string indexing so we don't depend on big-endian BinaryValue semantics.
-    """
-    s = binval.binstr  # MSB...LSB string
+    s = binval.binstr  # MSB...LSB
     if not s or idx < 0 or idx >= len(s):
         return None
     ch = s[-1 - idx]   # LSB at rightmost
@@ -45,10 +42,6 @@ def _bit_lsb0(binval, idx):
     return None
 
 def _bits_lsb0(binval, lsb, msb):
-    """
-    Return integer composed from bits [msb:lsb] (inclusive), LSB=0 indexing.
-    Returns None if any bit is X/Z.
-    """
     val = 0
     for i in range(lsb, msb + 1):
         b = _bit_lsb0(binval, i)
@@ -59,12 +52,13 @@ def _bits_lsb0(binval, lsb, msb):
 
 # ----------------------------- helpers ---------------------------------------
 async def send_byte(dut, byte: int):
-    """Assert ui_in[2] for exactly one clock while driving uio_in with *byte*."""
+    """Pulse byte_valid (ui_in[2]) exactly one cycle while PRESERVING selector [1:0]."""
     await RisingEdge(dut.clk)
+    curr = int(dut.ui_in.value) & 0xFF
     dut.uio_in.value = byte & 0xFF
-    dut.ui_in.value  = 0b0000_0100
+    dut.ui_in.value  = curr | 0b100          # set bit2 (byte_valid=1), keep [1:0]
     await RisingEdge(dut.clk)
-    dut.ui_in.value  = 0
+    dut.ui_in.value  = (int(dut.ui_in.value) & ~0b100)  # clear bit2, keep [1:0]
 
 async def send_sample(dut, word: int):
     """Send a 16-bit sample MSB first, then LSB."""
@@ -72,7 +66,7 @@ async def send_sample(dut, word: int):
     await send_byte(dut,  word        & 0xFF)
 
 async def hard_reset(dut):
-    """Asynchronous active-low reset, held for five cycles."""
+    """Active-low reset for five cycles."""
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
@@ -82,7 +76,6 @@ async def hard_reset(dut):
 @cocotb.test()
 async def tinytapeout_csv_stimulus(dut):
     """Drive TinyTapeout wrapper with NUM_UNITS-channel CSV stimulus and record results."""
-
     # Clock & reset
     cocotb.start_soon(Clock(dut.clk, CLK_PERIOD_NS, units="ns").start())
     dut.ena.value    = 1
@@ -90,19 +83,19 @@ async def tinytapeout_csv_stimulus(dut):
     dut.uio_in.value = 0
     await hard_reset(dut)
 
-    # Statistics
+    # Stats
     spike_total     = 0
     spike_per_unit  = [0] * NUM_UNITS
     event_histogram = [0] * 4
 
-    # Traces for plotting
+    # Traces
     sample_times  = [[] for _ in range(NUM_UNITS)]
     sample_values = [[] for _ in range(NUM_UNITS)]
     spike_times   = [[] for _ in range(NUM_UNITS)]
     event_times   = [[] for _ in range(NUM_UNITS)]
     event_types   = [[] for _ in range(NUM_UNITS)]
 
-    # Stimulus loop
+    # CSV
     csv_path = Path(__file__).with_name(CSV_FILE)
     if not csv_path.exists():
         raise FileNotFoundError(f"cannot open {CSV_FILE}")
@@ -127,34 +120,35 @@ async def tinytapeout_csv_stimulus(dut):
                 continue
 
             for ch, sample in enumerate(samples):
-                # (1) record analogue trace point
+                # --- hold selector BEFORE and DURING the write ---
+                sel = (int(dut.ui_in.value) & ~0b11) | (ch & 0b11)
+                dut.ui_in.value = sel
+
+                # (1) trace point
                 sample_times[ch].append(sample_idx)
                 sample_values[ch].append(sample)
 
-                # (2) send the sample
+                # (2) send sample
                 await send_sample(dut, sample)
 
                 # (3) DUT pipeline latency
                 if PROCESS_CYCLES:
                     await ClockCycles(dut.clk, PROCESS_CYCLES)
 
-                # (4) hold selector on ui_in[1:0]; ensure byte_valid=0
-                dut.ui_in.value = (ch & 0b11)
-
-                # (5) allow selector to propagate and observe for a few cycles
+                # (4) observe selected unit for a few cycles
                 await RisingEdge(dut.clk)   # settle
                 saw_spike = False
                 resolved_event = None
                 for _ in range(OBS_CYCLES):
-                    s = _bit_lsb0(dut.uo_out.value, 0)      # spike at bit 0 (LSB)
-                    e = _bits_lsb0(dut.uo_out.value, 1, 2)  # event at bits [2:1]
+                    s = _bit_lsb0(dut.uo_out.value, 0)      # spike @ bit 0
+                    e = _bits_lsb0(dut.uo_out.value, 1, 2)  # event @ [2:1]
                     if s == 1:
                         saw_spike = True
                     if e is not None:
                         resolved_event = e
                     await RisingEdge(dut.clk)
 
-                # (6) accumulate stats and traces
+                # (5) stats
                 if saw_spike:
                     spike_total        += 1
                     spike_per_unit[ch] += 1
@@ -165,15 +159,11 @@ async def tinytapeout_csv_stimulus(dut):
                     event_times[ch].append(sample_idx)
                     event_types[ch].append(resolved_event)
                 else:
-                    # If never resolved, count as 00 (or skip if you prefer)
                     event_histogram[0] += 1
                     event_times[ch].append(sample_idx)
                     event_types[ch].append(0)
 
                 sample_idx += 1
-                if sample_idx % 1000 == 0:
-                    dut._log.info("Processed %d samples", sample_idx)
-
             rows_read += 1
 
     # Summary
