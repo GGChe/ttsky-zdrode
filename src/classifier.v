@@ -38,6 +38,7 @@ module classifier (
     reg  [31:0] counter_confirmation_a;
     reg  [31:0] counter_confirmation_b;
     reg  [31:0] last_a_section_end;
+    reg  [31:0] last_b_section_end;
     reg  [31:0] k;
 
     always @(posedge clk) begin
