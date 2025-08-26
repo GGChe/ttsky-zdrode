@@ -1,5 +1,8 @@
-`default_nettype none
-module processing_system #(
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ module processing_system #(
         parameter integer NUM_UNITS  = 2,
         parameter integer DATA_WIDTH = 16
     )(

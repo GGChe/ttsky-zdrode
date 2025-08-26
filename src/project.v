@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-`default_nettype none
-
 module tt_um_top_layer (
     input  wire [7:0] ui_in,    // Dedicated inputs 
     output wire [7:0] uo_out,   // Dedicated outputs
@@ -16,15 +14,11 @@ module tt_um_top_layer (
     input  wire       rst_n     // Reset of the project (active-low)
 );
 
-    // ------------------------------------------------------------------------
     // Parameters
-    // ------------------------------------------------------------------------
     parameter integer NUM_UNITS  = 2;
     parameter integer DATA_WIDTH = 16;
 
-    // ------------------------------------------------------------------------
     // Reset / control
-    // ------------------------------------------------------------------------
     wire rst = ~rst_n;
 
     // Channel select input from ui_in[1:0] (only 2 bits are available on UI)
@@ -36,9 +30,7 @@ module tt_um_top_layer (
     // Byte-valid strobe on ui_in[2]
     wire byte_valid = ui_in[2];
 
-    // ------------------------------------------------------------------------
     // 2-byte sample assembler (MSB then LSB), synchronous to clk
-    // ------------------------------------------------------------------------
     reg [DATA_WIDTH-1:0] sample_sr   = {DATA_WIDTH{1'b0}};
     reg                  byte_idx    = 1'b0;   // toggles 0 → 1 → 0
     reg                  sample_wr_en= 1'b0;
@@ -88,20 +80,8 @@ module tt_um_top_layer (
         .sample_valid          (sample_valid_unused)
     );
 
-    // ------------------------------------------------------------------------
     // Output mux: select event/spike data from the selected unit
-    // ------------------------------------------------------------------------
-    // event_bus layout (LSB on the right):
-    //   unit 0 -> event_bus[1:0]
-    //   unit 1 -> event_bus[3:2]
-    //   ...
-    // spike_bus layout:
-    //   unit k -> spike_bus[k]
-    //
-    // uo_out mapping:
-    //   [0]   = spike (selected unit)
-    //   [2:1] = event[1:0] (selected unit)
-    //   [7:3] = 0
+
     assign uo_out = {
         5'b00000,
         event_bus[2*selected_unit +: 2],

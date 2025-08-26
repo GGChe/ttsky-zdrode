@@ -1,4 +1,8 @@
-`default_nettype none
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 module classifier (
     input  wire        clk,
     input  wire        reset,

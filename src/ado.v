@@ -1,4 +1,8 @@
-module ado (
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ module ado (
     input wire clk,
     input wire rst,
     input wire [15:0] data_in,
@@ -14,7 +18,7 @@ module ado (
 
     // Constants
     localparam integer SAMPLE_RATE_HZ     = 2000;
-    localparam integer REFRACTORY_SAMPLES = SAMPLE_RATE_HZ / 8;     // Internal signals
+    localparam integer REFRACTORY_SAMPLES = SAMPLE_RATE_HZ / 8;   
     reg signed [15:0] x1, x2, x3, x4;
     reg signed [15:0] ado;
     reg signed [15:0] threshold;
@@ -50,7 +54,6 @@ module ado (
             x3 <= x4;
             x4 <= $signed(data_in);
 
-            // Default output
             spike_detected <= 1'b0;
 
             // Refractory logic

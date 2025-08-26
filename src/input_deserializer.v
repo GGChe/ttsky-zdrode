@@ -1,4 +1,8 @@
-module input_deserializer (
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ module input_deserializer (
     input  wire       clk,
     input  wire       rst,
     input  wire       valid,

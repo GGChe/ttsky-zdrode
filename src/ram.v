@@ -1,5 +1,8 @@
-`default_nettype none
-module RAM16 #(
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ module RAM16 #(
     parameter ADDR_WIDTH = 3
 )(
     input                   CLK,

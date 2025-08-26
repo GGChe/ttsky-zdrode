@@ -1,4 +1,8 @@
-module neo (
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ module neo (
     input wire clk,
     input wire rst,
     input wire [15:0] data_in,

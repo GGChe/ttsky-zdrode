@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024 Gabriel Galeote-Checa
+ * SPDX-License-Identifier: Apache-2.0
+ */
 module ed (
     input wire clk,
     input wire rst,

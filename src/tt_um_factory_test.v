@@ -3,7 +3,7 @@
  *
  * Factory test project
  *
- * Author: Sylvain Munaut <tnt@246tNt.com> and Uri Shaked
+ * Author: Gabriel Galeote Checa <ggaleote@ieee.org>
  */
 
 `default_nettype none
