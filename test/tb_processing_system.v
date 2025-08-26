@@ -47,7 +47,6 @@ module tb_processing_system;
     rst = 1'b1;
     serial_data_in = 8'b0;
 
-    #20; 
     rst = 1'b0;
 
     $display("Feeding one 64-bit frame to processing_system:");
