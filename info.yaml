@@ -1,6 +1,6 @@
 # Tiny Tapeout project information
 project:
-  title:        "Spike Detection and Classification System"
+  title:        "ZDRODE"
   author:       "Gabriel Galeote Checa"
   discord:      "gonsos#2128"
   description:  "Serialized input buffering with 4 parallel spike detectors + classifiers"
